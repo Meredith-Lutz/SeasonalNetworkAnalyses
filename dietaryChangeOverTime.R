@@ -1,15 +1,27 @@
-###########################################################
-##### Calculate Diversity Indices per cycle per group #####
-###########################################################
+#####################################
+##### Temporal Feeding Analyses #####
+#####################################
 
 setwd('G:/My Drive/Graduate School/Research/Projects/TemporalNets')
 
 library(chron)
 library(stringr)
 
-feedingCleaned	<- read.csv('feedingClean.csv')
+source('G:/My Drive/Graduate School/Research/AO/CleanAOData/CleanAOData/CleanFeedingData.R')
 
-feedingCleaned	<- feedingCleaned[,c(2:3, 5:12, 15:16, 20:21, 25:29, 38:44)]
+feedingCleaned	<- feedingCleaned[[1]][,c(1:2, 4:8, 18:19, 23:27, 36:38, 40:42)]
+
+feedingCleaned$cycle_number	<- 0
+feedingCleaned[feedingCleaned$focal_start_time >= '2019-09-09' & feedingCleaned$focal_start_time <= '2019-10-04',]$cycle_number	<- 1
+feedingCleaned[feedingCleaned$focal_start_time >= '2019-10-07' & feedingCleaned$focal_start_time <= '2019-11-01',]$cycle_number	<- 2
+feedingCleaned[feedingCleaned$focal_start_time >= '2019-11-04' & feedingCleaned$focal_start_time <= '2019-11-29',]$cycle_number	<- 3
+feedingCleaned[feedingCleaned$focal_start_time >= '2019-12-02' & feedingCleaned$focal_start_time <= '2020-01-17',]$cycle_number	<- 4
+feedingCleaned[feedingCleaned$focal_start_time >= '2020-01-20' & feedingCleaned$focal_start_time <= '2020-02-14',]$cycle_number	<- 5
+feedingCleaned[feedingCleaned$focal_start_time >= '2020-02-17' & feedingCleaned$focal_start_time <= '2020-03-13',]$cycle_number	<- 6
+
+###########################################################
+##### Calculate Diversity Indices per cycle per group #####
+###########################################################
 
 shannonWeinerD	<- function(data, period, group){
 	subset		<- data[data$cycle_number == period & data$group_id == group, ]
@@ -53,3 +65,7 @@ lines(diversity[16:21,]$periods, diversity[16:21,]$d, col = 'goldenrod3', pch = 
 lines(diversity[23:28,]$periods, diversity[23:28,]$d, col = 'khaki', pch = 16, cex = 1.5, type = 'o', ylim = c(1, 5), lwd = 1)
 legend(1, 2.75, legend = c('Diadema 2', 'Diadema 3', 'Fulvus 2', 'Fulvus 3'), col = c('midnightblue', 'deepskyblue2', 'goldenrod3', 'khaki'), pch = 16)
 
+##########################
+##### Diet Over Time #####
+##########################
+partSummary	<- aggregate(feedingCleaned$duration, by = list(group = feedingCleaned$group_id, cycle = feedingCleaned$cycle_number, plant_part = feedingCleaned$part_eaten), FUN=sum)

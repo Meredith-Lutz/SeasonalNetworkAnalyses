@@ -254,6 +254,125 @@ lines(feedingRateSummary[feedingRateSummary$group == 'Fulvus 3' & feedingRateSum
 legend(0.5, 100, legend = c('Young leaves', 'Mature leaves', 'Unripe fruit', 'Ripe fruit'),
 	col = c('blue', 'yellow', 'green', 'black'), pch = 16)
 
+
+## start code that Alice added: plot large + small diet categories by species
+
+############################################################################################
+## Large plant part categories
+############################################################################################
+
+feedingRateSummary$species <- ifelse(feedingRateSummary$group %in% c("Diadema 2","Diadema 3"),
+                                     "Diadema","Fulvus")
+
+dietSum1    <- aggregate(feedingRateSummary$feedingHoursPlantPart, by = list(species = feedingRateSummary$species, cycle = feedingRateSummary$cycle, part = feedingRateSummary$partCat), FUN=sum)
+names(dietSum1) <- c("species","cycle","part","feedingHoursPlantPart")
+dietSum1$spcyc <- paste(dietSum1$species,dietSum1$cycle)
+
+hrs    <- aggregate(dietSum1$feedingHoursPlantPart, by = list(species = dietSum1$species, cycle = dietSum1$cycle), FUN=sum)
+hrs$spcyc <- paste(hrs$species,hrs$cycle)
+dietSum.sp <- merge(dietSum1, hrs[,c(3,4)], by="spcyc")[,-1]
+names(dietSum.sp) <- c("species","cycle","part","feedingHoursPlantPart","totalFeedingHours")
+
+dietSum.sp$x <- dietSum.sp$feedingHoursPlantPart/dietSum.sp$totalFeedingHours
+
+############################################################################################
+
+##Large dietary categories
+par(mfrow = c(1, 2))
+#Diadema
+plot(x = 0, y = 1, xlim = c(0,6), ylim = c(0, 100), pch = 16, type = 'n',
+     xlab = 'Cycle', ylab = 'Diet Percentage', main = 'Diadema')
+lines(dietSum.sp[dietSum.sp$species == 'Diadema' & dietSum.sp$part == 'plantRepro',]$cycle,
+      100*dietSum.sp[dietSum.sp$species == 'Diadema' & dietSum.sp$part == 'plantRepro',]$x,
+      col = 'blue', pch = 16, type = 'o')
+lines(dietSum.sp[dietSum.sp$species == 'Diadema' & dietSum.sp$part == 'leaves',]$cycle,
+      100*dietSum.sp[dietSum.sp$species == 'Diadema' & dietSum.sp$part == 'leaves',]$x,
+      col = 'green', pch = 16, type = 'o')
+lines(dietSum.sp[dietSum.sp$species == 'Diadema' & dietSum.sp$part == 'otherNonPlant',]$cycle,
+      100*dietSum.sp[dietSum.sp$species == 'Diadema' & dietSum.sp$part == 'otherNonPlant',]$x,
+      col = 'yellow', pch = 16, type = 'o')
+lines(dietSum.sp[dietSum.sp$species == 'Diadema' & dietSum.sp$part == 'otherPlant',]$cycle,
+      100*dietSum.sp[dietSum.sp$species == 'Diadema' & dietSum.sp$part == 'otherPlant',]$x,
+      col = 'black', pch = 16, type = 'o')
+#legend(0.5, 100, legend = c('Plant Reproductive Parts', 'Leaves', 'Other Plant Parts', 'Non-plant'),
+#       col = c('blue', 'green', 'black', 'yellow'), pch = 16)
+
+#Fulvus
+plot(x = 0, y = 1, xlim = c(0,6), ylim = c(0, 100), pch = 16, type = 'n',
+     xlab = 'Cycle', ylab = 'Diet Percentage', main = 'Fulvus')
+lines(dietSum.sp[dietSum.sp$species == 'Fulvus' & dietSum.sp$part == 'plantRepro',]$cycle,
+      100*dietSum.sp[dietSum.sp$species == 'Fulvus' & dietSum.sp$part == 'plantRepro',]$x,
+      col = 'blue', pch = 16, type = 'o')
+lines(dietSum.sp[dietSum.sp$species == 'Fulvus' & dietSum.sp$part == 'leaves',]$cycle,
+      100*dietSum.sp[dietSum.sp$species == 'Fulvus' & dietSum.sp$part == 'leaves',]$x,
+      col = 'green', pch = 16, type = 'o')
+lines(dietSum.sp[dietSum.sp$species == 'Fulvus' & dietSum.sp$part == 'otherNonPlant',]$cycle,
+      100*dietSum.sp[dietSum.sp$species == 'Fulvus' & dietSum.sp$part == 'otherNonPlant',]$x,
+      col = 'yellow', pch = 16, type = 'o')
+lines(dietSum.sp[dietSum.sp$species == 'Fulvus' & dietSum.sp$part == 'otherPlant',]$cycle,
+      100*dietSum.sp[dietSum.sp$species == 'Fulvus' & dietSum.sp$part == 'otherPlant',]$x,
+      col = 'black', pch = 16, type = 'o')
+legend(0.5, 60, legend = c('Plant Reproductive Parts', 'Leaves', 'Other Plant Parts', 'Non-plant'),
+       col = c('blue', 'green', 'black', 'yellow'), pch = 16, bty = "n")
+
+
+############################################################################################
+## Small plant part categories
+############################################################################################
+
+feedingSum1    <- aggregate(feedingRateSummary$feedingHoursPlantPart, by = list(species = feedingRateSummary$species, cycle = feedingRateSummary$cycle, part = feedingRateSummary$plant_part), FUN=sum)
+names(feedingSum1) <- c("species","cycle","part","feedingHoursPlantPart")
+feedingSum1$spcyc <- paste(feedingSum1$species,feedingSum1$cycle)
+
+feedingSum.sp <- merge(feedingSum1, hrs[,c(3,4)], by="spcyc")[,-1]
+names(feedingSum.sp) <- c("species","cycle","plant_part","feedingHoursPlantPart","totalFeedingHours")
+
+feedingSum.sp$feedingPercent <- feedingSum.sp$feedingHoursPlantPart/feedingSum.sp$totalFeedingHours
+
+
+############################################################################################
+
+##Small dietary categories
+par(mfrow = c(1, 2))
+#Diadema
+plot(x = 0, y = 1, xlim = c(0,6), ylim = c(0, 100), pch = 16, type = 'n',
+     xlab = 'Cycle', ylab = 'Diet Percentage', main = 'Diadema')
+#lines(feedingSum.sp[feedingSum.sp$species == 'Diadema' & feedingSum.sp$plant_part == 'Young leaves',]$cycle,
+#      100*feedingSum.sp[feedingSum.sp$species == 'Diadema' & feedingSum.sp$plant_part == 'Young leaves',]$feedingPercent,
+#      col = 'blue', pch = 16, type = 'o')
+#lines(feedingSum.sp[feedingSum.sp$species == 'Diadema' & feedingSum.sp$plant_part == 'Mature leaves',]$cycle,
+#      100*feedingSum.sp[feedingSum.sp$species == 'Diadema' & feedingSum.sp$plant_part == 'Mature leaves',]$feedingPercent,
+#      col = 'yellow', pch = 16, type = 'o')
+lines(feedingSum.sp[feedingSum.sp$species == 'Diadema' & feedingSum.sp$plant_part == 'Unripe fruit',]$cycle,
+      100*feedingSum.sp[feedingSum.sp$species == 'Diadema' & feedingSum.sp$plant_part == 'Unripe fruit',]$feedingPercent,
+      col = 'green', pch = 16, type = 'o')
+lines(feedingSum.sp[feedingSum.sp$species == 'Diadema' & feedingSum.sp$plant_part == 'Ripe fruit',]$cycle,
+      100*feedingSum.sp[feedingSum.sp$species == 'Diadema' & feedingSum.sp$plant_part == 'Ripe fruit',]$feedingPercent,
+      col = 'black', pch = 16, type = 'o')
+legend(0.5, 100, legend = c('Young leaves', 'Mature leaves', 'Unripe fruit', 'Ripe fruit'),
+       col = c('blue', 'yellow', 'green', 'black'), pch = 16, bty = "n")
+
+#Fulvus
+plot(x = 0, y = 1, xlim = c(0,6), ylim = c(0, 100), pch = 16, type = 'n',
+     xlab = 'Cycle', ylab = 'Diet Percentage', main = 'Fulvus')
+#lines(feedingSum.sp[feedingSum.sp$species == 'Fulvus' & feedingSum.sp$plant_part == 'Young leaves',]$cycle,
+#      100*feedingSum.sp[feedingSum.sp$species == 'Fulvus' & feedingSum.sp$plant_part == 'Young leaves',]$feedingPercent,
+#      col = 'blue', pch = 16, type = 'o')
+#lines(feedingSum.sp[feedingSum.sp$species == 'Fulvus' & feedingSum.sp$plant_part == 'Mature leaves',]$cycle,
+#      100*feedingSum.sp[feedingSum.sp$species == 'Fulvus' & feedingSum.sp$plant_part == 'Mature leaves',]$feedingPercent,
+#      col = 'yellow', pch = 16, type = 'o')
+lines(feedingSum.sp[feedingSum.sp$species == 'Fulvus' & feedingSum.sp$plant_part == 'Unripe fruit',]$cycle,
+      100*feedingSum.sp[feedingSum.sp$species == 'Fulvus' & feedingSum.sp$plant_part == 'Unripe fruit',]$feedingPercent,
+      col = 'green', pch = 16, type = 'o')
+lines(feedingSum.sp[feedingSum.sp$species == 'Fulvus' & feedingSum.sp$plant_part == 'Ripe fruit',]$cycle,
+      100*feedingSum.sp[feedingSum.sp$species == 'Fulvus' & feedingSum.sp$plant_part == 'Ripe fruit',]$feedingPercent,
+      col = 'black', pch = 16, type = 'o')
+#legend(0.5, 100, legend = c('Young leaves', 'Mature leaves', 'Unripe fruit', 'Ripe fruit'),
+#       col = c('blue', 'yellow', 'green', 'black'), pch = 16, bty = "n")
+
+## end code that Alice added
+
+
 ######################
 ##### Focal Time #####
 ######################

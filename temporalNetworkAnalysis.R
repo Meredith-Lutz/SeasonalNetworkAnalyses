@@ -13,18 +13,18 @@ library(stringr)
 ### Preparing MF Data ###
 #########################
 #########################
-setwd('G:/My Drive/Graduate School/Research/Projects/TemporalNets/SeasonalNetworkAnalyses')
+setwd('C:/Users/cecil/OneDrive/Desktop/Github Work/SeasonalNetworkAnalyses')
 
 ## Source functions
 source('createNetworkFunction.R') #Edge weights are either counts or duration
 source('createObsMatrix.R')
-source('G:/My Drive/Graduate School/Research/AO/CleanAOData/CleanAOData/CleanSocialDataFunctions.R')
+source('C:/Users/cecil/OneDrive/Desktop/Github Work/CleanAOData/CleanSocialDataFunctions.R')
 
 
 ## Connect to database
 drv	<- dbDriver('PostgreSQL') ##Be sure to use real database name
-con	<- dbConnect(drv, dbname = 'diadema_fulvus', host = 'localhost', port = 5432,
-								 user = 'postgres', password = 'postgres')
+con	<- dbConnect(drv, dbname = dbname, host = 'raja.db.elephantsql.com', port = 5432,
+								 user = user, password = password)
 
 
 allData	<- dbGetQuery(con, 'select group_id, pin_code_name, focal_start_time, 
@@ -261,7 +261,7 @@ fulvus3	<- sort(c('Zk', 'Vt', 'So', 'Kd', 'Pm', 'Gy')) #removed Rk
 verreauxi3	<- sort(c('Thor', 'Velo', 'Venus', 'Vervet'))
 verreauxi6	<- sort(c('Emily', 'Nectar', 'Neptune', 'Mafia', 'Nancy'))
 
-listAnimalsByGroup	<- list(diadema2, diadema3, fulvus2, fulvus3, verreauxi3, verreauxi6)
+listAnimalsByGroup	<- list(diadema2, diadema3, fulvus2, fulvus3)
 listGroups		<- c('Diadema 2', 'Diadema 3', 'Fulvus 2', 'Fulvus 3')
 listFocalByGroup	<- list(focalListNoOdilon[focalListNoOdilon$group_id == listGroups[1],], focalListNoOdilon[focalListNoOdilon$group_id == listGroups[2],],
                          focalListNoOdilon[focalListNoOdilon$group_id == listGroups[3],], focalListNoOdilon[focalListNoOdilon$group_id == listGroups[4],])
@@ -493,6 +493,68 @@ for (j in 1:4){
   }
   plot((1:6), cvs[,1], xlab = "Cycle", ylab = "Coeff of Variation", main = "Grooming", ylim = c(1, 5), pch = 20, cex=2)
 }
+
+########################################
+########################################
+### Temporal Network Models via Amen ###
+########################################
+########################################
+library(amen)
+
+demo	<- read.csv("C:/Users/cecil/OneDrive/Desktop/Github Work/demographicData.csv")
+
+demo 	<- demo[order(demo$ID),]
+##########################################
+### Organizing demographic information ###
+##########################################
+d2demo	<- demo[demo$group == 'Diadema 2',]
+d3demo	<- demo[demo$group == 'Diadema 3',]
+f2demo	<- demo[demo$group == 'Fulvus 2',]
+f3demo	<- demo[demo$group == 'Fulvus 3',]
+
+###########################################
+### Calculate rank & covariate matrices ###
+###########################################
+d2res 	<- elo.seq(winner = d2domData$winner, loser = d2domData$loser, Date = d2domData$behavior_time, runcheck = TRUE)
+d3res 	<- elo.seq(winner = d3domData$winner, loser = d3domData$loser, Date = d3domData$behavior_time, runcheck = TRUE)
+
+d2Elo		<- extract_elo(d2res)
+d2EloAlpha	<- d2Elo[c(10, 3, 11, 7, 6, 4, 2, 1, 9, 5, 8)]
+d2demo$rank	<- d2EloAlpha
+
+d3Elo		<- extract_elo(d3res)
+d3EloAlpha	<- d3Elo[c(3, 6, 4, 1, 5, 2)]
+d3demo$rank	<- d3EloAlpha
+
+d2RankDiff	<- 0*table(diadema2)%*%t(table(diadema2))
+d3RankDiff	<- 0*table(diadema3)%*%t(table(diadema3))
+d2AgeDiff	<- 0*table(diadema2)%*%t(table(diadema2))
+d3AgeDiff	<- 0*table(diadema3)%*%t(table(diadema3))
+
+for(i in diadema2){
+	for(j in diadema2){
+		actorAge		<- d2demo[d2demo$ID == i,]$ageCat
+		actorRank		<- d2demo[d2demo$ID == i,]$rank
+		recipAge		<- d2demo[d2demo$ID == j,]$ageCat
+		recipRank		<- d2demo[d2demo$ID == j,]$rank
+		d2AgeDiff[i, j]	<- abs(actorAge - recipAge)
+		d2RankDiff[i, j]	<- abs(actorRank - recipRank)
+	}
+}
+
+for(i in diadema3){
+	for(j in diadema3){
+		actorAge		<- d3demo[d3demo$ID == i,]$ageCat
+		actorRank		<- d3demo[d3demo$ID == i,]$rank
+		recipAge		<- d3demo[d3demo$ID == j,]$ageCat
+		recipRank		<- d3demo[d3demo$ID == j,]$rank
+		d3AgeDiff[i, j]	<- abs(actorAge - recipAge)
+		d3RankDiff[i, j]	<- abs(actorRank - recipRank)
+	}
+}
+
+#Working with diadema 2
+model1 <- ame_rep(matRates[[1]], ) 
 
 
 

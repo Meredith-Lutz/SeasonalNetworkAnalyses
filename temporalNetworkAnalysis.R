@@ -515,46 +515,51 @@ f3demo	<- demo[demo$group == 'Fulvus 3',]
 ###########################################
 ### Calculate rank & covariate matrices ###
 ###########################################
-d2res 	<- elo.seq(winner = d2domData$winner, loser = d2domData$loser, Date = d2domData$behavior_time, runcheck = TRUE)
-d3res 	<- elo.seq(winner = d3domData$winner, loser = d3domData$loser, Date = d3domData$behavior_time, runcheck = TRUE)
-
-d2Elo		<- extract_elo(d2res)
-d2EloAlpha	<- d2Elo[c(10, 3, 11, 7, 6, 4, 2, 1, 9, 5, 8)]
-d2demo$rank	<- d2EloAlpha
-
-d3Elo		<- extract_elo(d3res)
-d3EloAlpha	<- d3Elo[c(3, 6, 4, 1, 5, 2)]
-d3demo$rank	<- d3EloAlpha
-
-d2RankDiff	<- 0*table(diadema2)%*%t(table(diadema2))
-d3RankDiff	<- 0*table(diadema3)%*%t(table(diadema3))
 d2AgeDiff	<- 0*table(diadema2)%*%t(table(diadema2))
 d3AgeDiff	<- 0*table(diadema3)%*%t(table(diadema3))
+
+d2SexDiff	<- 0*table(diadema2)%*%t(table(diadema2))
+d3SexDiff	<- 0*table(diadema3)%*%t(table(diadema3))
 
 for(i in diadema2){
 	for(j in diadema2){
 		actorAge		<- d2demo[d2demo$ID == i,]$ageCat
-		actorRank		<- d2demo[d2demo$ID == i,]$rank
 		recipAge		<- d2demo[d2demo$ID == j,]$ageCat
-		recipRank		<- d2demo[d2demo$ID == j,]$rank
+		actorSex		<- d2demo[d2demo$ID == i,]$sex
+		recipSex		<- d2demo[d2demo$ID == j,]$sex
 		d2AgeDiff[i, j]	<- abs(actorAge - recipAge)
-		d2RankDiff[i, j]	<- abs(actorRank - recipRank)
+		d2SexDiff[i, j]	<- ifelse(actorSex == recipSex, 1, 0)
 	}
 }
 
 for(i in diadema3){
 	for(j in diadema3){
 		actorAge		<- d3demo[d3demo$ID == i,]$ageCat
-		actorRank		<- d3demo[d3demo$ID == i,]$rank
 		recipAge		<- d3demo[d3demo$ID == j,]$ageCat
-		recipRank		<- d3demo[d3demo$ID == j,]$rank
+		actorSex		<- d3demo[d3demo$ID == i,]$sex
+		recipSex		<- d3demo[d3demo$ID == j,]$sex
 		d3AgeDiff[i, j]	<- abs(actorAge - recipAge)
-		d3RankDiff[i, j]	<- abs(actorRank - recipRank)
+		d3SexDiff[i, j]	<- ifelse(actorSex == recipSex, 1, 0)
 	}
 }
 
+tempDyadCov	<- array(c(d2AgeDiff, d2SexDiff), dim = c(10,10,2))
+dyadCov	<- array(rep(tempDyadCov, 6), dim = c(10,10,2,6))
+
+d2demoNoVo	<- d2demo[d2demo$ID != "Vo",]
+d2Sex		<- d2demoNoVo$sex
+indivCov	<- array(rep(d2Sex, 6), dim = c(10, 1, 6))
+y		<- array(unlist(matRates[[1]]), dim = c(10, 10, 6))
+
 #Working with diadema 2
-model1 <- ame_rep(matRates[[1]], ) 
+model1 <- ame_rep(y, Xdyad = dyadCov, Xrow = indivCov, Xcol = indivCov, 
+		family = "nrm", R = 0, rvar = TRUE, cvar = TRUE, dcor = TRUE, 
+		symmetric = FALSE)
+# Error in if (!any(apply(X, 3, function(x) { : 
+  missing value where TRUE/FALSE needed
+# In addition: Warning messages:
+  1: In var(c(x), na.rm = TRUE) : NAs introduced by coercion
+  2: In var(c(x), na.rm = TRUE) : NAs introduced by coercion
 
 
 

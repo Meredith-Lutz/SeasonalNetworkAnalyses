@@ -7,6 +7,7 @@ library(RPostgreSQL)
 library(igraph)
 library(chron)
 library(stringr)
+library(lubridate)
 
 #########################
 #########################
@@ -314,9 +315,9 @@ gpIIISocial	<- gpIIISocial[gpIIISocial$Initiator %in% verreauxi3 & gpIIISocial$R
 gpVISocial	<- gpVISocial[gpVISocial$Initiator %in% verreauxi6 & gpVISocial$Receiver %in% verreauxi6,]
 
 
-##################################
-### Preparing social data sets ###
-##################################
+#################################################
+### Plot Monthly Networks for Timeline Figure ###
+#################################################
 rot1	<- socialData3[socialData3$rotation == 1,]
 rot2	<- socialData3[socialData3$rotation == 2,]
 rot3	<- socialData3[socialData3$rotation == 3,]
@@ -493,6 +494,59 @@ for (j in 1:4){
   }
   plot((1:6), cvs[,1], xlab = "Cycle", ylab = "Coeff of Variation", main = "Grooming", ylim = c(1, 5), pch = 20, cex=2)
 }
+
+###################################
+###################################
+### Verifying Seasonality in Net###
+###################################
+###################################
+socialData3$week		<- isoweek(socialData3$focal_start_time)
+socialData3$conWeek	<- ifelse(socialData3$week > 30, 
+				   socialData3$week - 36, socialData3$week + 13)
+focalListNoOdilon$week		<- isoweek(focalListNoOdilon$focal_start_time)
+focalListNoOdilon$conWeek	<- ifelse(focalListNoOdilon$week > 30, 
+				   focalListNoOdilon$week - 36, focalListNoOdilon$week + 13)
+# real data starts with week 1 in the conWeek variable which loops betweem Dec and Jan
+# training is weeks -4 to 0
+groups				<- c("Diadema 2", "Diadema 3", "Fulvus 2", "Fulvus 3")
+behaviors				<- c("Groom", "Play", "Contact", "Proximity")
+summarizedWeeklyNetProps	<- data.frame(week = numeric(), 
+						group = character(), behav = character(), 
+						density = numeric(), avgStrength = numeric(),
+						edgeDiff = numeric(), modularity = numeric())
+cv	<- function(data){
+		return(sd(data, na.rm = TRUE)/mean(data, na.rm = TRUE))
+		}
+
+for(i in 1:24){
+	for(j in groups){
+		for(k in behaviors){
+			subset	<- socialData3[socialData3$conWeek == i & 
+						socialData3$group_id == j & 
+						socialData3$behavior == k,]
+			obsSubset	<- focalListNoOdilon[focalListNoOdilon$conWeek == i &
+					   focalListNoOdilon$group_id == j,]
+			obsSubset$focal_individual_id	<- factor(obsSubset$focal_individual_id)
+			focalTable		<- data.frame(focal_individual_id = levels(obsSubset$focal_individual_id), duration = tapply(obsSubset$focalDuration, obsSubset$focal_individual_id, FUN = sum))
+			obsMat		<- createObsMatrix(focalTable)
+			if(j == "Proximity"){
+				prxMat	<- createNet(subset$actor, subset$subject, subset$behavior, k, subjects = levels(obsSubset$focal_individual_id), type = 'duration', durs = subset$duration)
+				appMat	<- createNet(subset$actor, subset$subject, subset$behavior, k, subjects = levels(obsSubset$focal_individual_id), type = 'count')
+ 				prxNet	<- graph_from_adjacency_matrix(prxMat, mode = "directed", weighted = TRUE, add.rownames = TRUE)
+				appNet	<- graph_from_adjacency_matrix(appMat, mode = "directed", weighted = TRUE, add.rownames = TRUE)
+				prxDen	<- edge_density(prxNet)
+				appDen	<- edge_density(appNet)
+				prxStrength	<- mean(strength(prxNet, mode = "all", weights = TRUE))
+				appStrength <- mean(strength(appNet, mode = "all", weights = TRUE))
+				prxMod	<- modularity(prxNet, membership = cluster_optimal(prxNet))
+				appMod	<- modularity(appNet, membership = cluster_optimal(appNet))
+				prxEdgeDiff	<- cv(V(prxNet)$weight)
+				appEdgeDiff	<- cv(V(appNet)$weight)
+				prxLine	<- c(week = i, group = j, behav = k, density = prxDen, avgStrength = prxStrength, edgeDiff = prxEdgeDiff, modularity = prxMod)
+				appLine	<- c(week = i, group = j, behav = "Approach", density = appDen, avgStrength = appStrength, edgeDiff = appEdgeDiff, modularity = appMod)		
+				summarizedWeeklyNetProps	<- rbind(summarizedWeeklyNetProps, prxLine, appLine)
+			}
+		#Use prxLines from above in an else statement to finish the other behaviors
 
 ########################################
 ########################################

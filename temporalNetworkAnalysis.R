@@ -8,6 +8,7 @@ library(igraph)
 library(chron)
 library(stringr)
 library(lubridate)
+library(mgcv)
 
 #########################
 #########################
@@ -521,9 +522,16 @@ cv	<- function(data){
 for(i in 1:24){
 	for(j in groups){
 		for(k in behaviors){
+			print(i)
+			print(j)
+			print(k)
 			subset	<- socialData3[socialData3$conWeek == i & 
 						socialData3$group_id == j & 
 						socialData3$behavior == k,]
+			print(dim(subset))
+			if(dim(subset)[1] == 0){
+				next
+			}
 			obsSubset	<- focalListNoOdilon[focalListNoOdilon$conWeek == i &
 					   focalListNoOdilon$group_id == j,]
 			obsSubset$focal_individual_id	<- factor(obsSubset$focal_individual_id)
@@ -532,21 +540,53 @@ for(i in 1:24){
 			if(j == "Proximity"){
 				prxMat	<- createNet(subset$actor, subset$subject, subset$behavior, k, subjects = levels(obsSubset$focal_individual_id), type = 'duration', durs = subset$duration)
 				appMat	<- createNet(subset$actor, subset$subject, subset$behavior, k, subjects = levels(obsSubset$focal_individual_id), type = 'count')
- 				prxNet	<- graph_from_adjacency_matrix(prxMat, mode = "directed", weighted = TRUE, add.rownames = TRUE)
-				appNet	<- graph_from_adjacency_matrix(appMat, mode = "directed", weighted = TRUE, add.rownames = TRUE)
+ 				prxMatAdj	<- prxMat/obsMat
+				appMatAdj	<- appMat/obsMat
+				prxNet	<- graph_from_adjacency_matrix(prxMatAdj, mode = "directed", weighted = TRUE, add.rownames = TRUE)
+				appNet	<- graph_from_adjacency_matrix(appMatAdj, mode = "directed", weighted = TRUE, add.rownames = TRUE)
 				prxDen	<- edge_density(prxNet)
 				appDen	<- edge_density(appNet)
-				prxStrength	<- mean(strength(prxNet, mode = "all", weights = TRUE))
-				appStrength <- mean(strength(appNet, mode = "all", weights = TRUE))
-				prxMod	<- modularity(prxNet, membership = cluster_optimal(prxNet))
-				appMod	<- modularity(appNet, membership = cluster_optimal(appNet))
-				prxEdgeDiff	<- cv(V(prxNet)$weight)
-				appEdgeDiff	<- cv(V(appNet)$weight)
+				prxStrength	<- mean(strength(prxNet, mode = "all", weights = E(prxNet)$weight))
+				appStrength <- mean(strength(appNet, mode = "all", weights = E(appNet)$weight))
+				prxMod	<- modularity(prxNet, membership = membership(cluster_optimal(prxNet)), E(prxNet)$weight)
+				appMod	<- modularity(appNet, membership = membership(cluster_optimal(appNet)), E(appNet)$weight)
+				prxEdgeDiff	<- cv(E(prxNet)$weight)
+				appEdgeDiff	<- cv(E(appNet)$weight)
 				prxLine	<- c(week = i, group = j, behav = k, density = prxDen, avgStrength = prxStrength, edgeDiff = prxEdgeDiff, modularity = prxMod)
 				appLine	<- c(week = i, group = j, behav = "Approach", density = appDen, avgStrength = appStrength, edgeDiff = appEdgeDiff, modularity = appMod)		
-				summarizedWeeklyNetProps	<- rbind(summarizedWeeklyNetProps, prxLine, appLine)
+				twoLines	<- rbind(prxLine, appLine, stringsAsFactors = FALSE)
+				summarizedWeeklyNetProps<- rbind(summarizedWeeklyNetProps, twoLines, stringsAsFactors = FALSE)
 			}
-		#Use prxLines from above in an else statement to finish the other behaviors
+			else{
+				behavMat	<- createNet(subset$actor, subset$subject, subset$behavior, k, subjects = levels(obsSubset$focal_individual_id), type = 'duration', durs = subset$duration)
+				behavMatAdj	<- behavMat/obsMat
+				behavNet	<- graph_from_adjacency_matrix(behavMatAdj, mode = "directed", weighted = TRUE, add.rownames = TRUE)
+				behavDen	<- edge_density(behavNet)
+				behavStrength<- mean(strength(behavNet, mode = "all", weights = E(behavNet)$weight))
+				behavMod	<- modularity(behavNet, membership = membership(cluster_optimal(behavNet)), E(behavNet)$weight)
+				behavEdgeDiff<- cv(E(behavNet)$weight)
+				behavLine	<- c(week = i, group = j, behav = k, density = behavDen, avgStrength = behavStrength, edgeDiff = behavEdgeDiff, modularity = behavMod)
+				summarizedWeeklyNetProps	<- rbind(summarizedWeeklyNetProps, behavLine, stringsAsFactors = FALSE)
+			}
+		}
+	}
+}
+
+colnames(summarizedWeeklyNetProps)	<- c("week", "group_id", "behavior", 
+		"density", "avgStrength", "edgeDiff", "modularity")
+
+summarizedWeeklyNetProps$week		<- as.numeric(summarizedWeeklyNetProps$week)
+summarizedWeeklyNetProps$avgStrength<- as.numeric(summarizedWeeklyNetProps$avgStrength)
+summarizedWeeklyNetProps$group_id	<- as.factor(summarizedWeeklyNetProps$group_id)
+grm	<- summarizedWeeklyNetProps[summarizedWeeklyNetProps$behavior == "Groom",]
+play	<- summarizedWeeklyNetProps[summarizedWeeklyNetProps$behavior == "Play",]
+
+plot(play$week, play$avgStrength, col = as.factor(play$group_id), pch = 16)
+
+############## 
+### GAMM's ###
+############## 
+model1 <- gamm(avgStrength ~ s(week), random = list(group_id=~1), data = play, family = gaussian)
 
 ########################################
 ########################################

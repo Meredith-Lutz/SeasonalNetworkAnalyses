@@ -15,12 +15,12 @@ library(mgcv)
 ### Preparing MF Data ###
 #########################
 #########################
-setwd('C:/Users/cecil/OneDrive/Desktop/Github Work/SeasonalNetworkAnalyses')
+setwd('C:/Users/cecil/OneDrive/Desktop/SDC Work/Github Work/SeasonalNetworkAnalyses')
 
 ## Source functions
 source('createNetworkFunction.R') #Edge weights are either counts or duration
 source('createObsMatrix.R')
-source('C:/Users/cecil/OneDrive/Desktop/Github Work/CleanAOData/CleanSocialDataFunctions.R')
+source('C:/Users/cecil/OneDrive/Desktop/SDC Work/Github Work/CleanAOData/CleanSocialDataFunctions.R')
 
 
 ## Connect to database
@@ -537,7 +537,7 @@ for(i in 1:24){
 			obsSubset$focal_individual_id	<- factor(obsSubset$focal_individual_id)
 			focalTable		<- data.frame(focal_individual_id = levels(obsSubset$focal_individual_id), duration = tapply(obsSubset$focalDuration, obsSubset$focal_individual_id, FUN = sum))
 			obsMat		<- createObsMatrix(focalTable)
-			if(j == "Proximity"){
+			if(k == "Proximity"){
 				prxMat	<- createNet(subset$actor, subset$subject, subset$behavior, k, subjects = levels(obsSubset$focal_individual_id), type = 'duration', durs = subset$duration)
 				appMat	<- createNet(subset$actor, subset$subject, subset$behavior, k, subjects = levels(obsSubset$focal_individual_id), type = 'count')
  				prxMatAdj	<- prxMat/obsMat
@@ -554,7 +554,9 @@ for(i in 1:24){
 				appEdgeDiff	<- cv(E(appNet)$weight)
 				prxLine	<- c(week = i, group = j, behav = k, density = prxDen, avgStrength = prxStrength, edgeDiff = prxEdgeDiff, modularity = prxMod)
 				appLine	<- c(week = i, group = j, behav = "Approach", density = appDen, avgStrength = appStrength, edgeDiff = appEdgeDiff, modularity = appMod)		
-				twoLines	<- rbind(prxLine, appLine, stringsAsFactors = FALSE)
+				twoLines	<- rbind(prxLine, appLine)
+				colnames(twoLines)	<- c("week", "group_id", "behavior", 
+								"density", "avgStrength", "edgeDiff", "modularity")
 				summarizedWeeklyNetProps<- rbind(summarizedWeeklyNetProps, twoLines, stringsAsFactors = FALSE)
 			}
 			else{
@@ -566,7 +568,9 @@ for(i in 1:24){
 				behavMod	<- modularity(behavNet, membership = membership(cluster_optimal(behavNet)), E(behavNet)$weight)
 				behavEdgeDiff<- cv(E(behavNet)$weight)
 				behavLine	<- c(week = i, group = j, behav = k, density = behavDen, avgStrength = behavStrength, edgeDiff = behavEdgeDiff, modularity = behavMod)
-				summarizedWeeklyNetProps	<- rbind(summarizedWeeklyNetProps, behavLine, stringsAsFactors = FALSE)
+				summarizedWeeklyNetProps<- rbind(summarizedWeeklyNetProps, behavLine, stringsAsFactors = FALSE)
+				colnames(summarizedWeeklyNetProps)	<- c("week", "group_id", "behavior", 
+									"density", "avgStrength", "edgeDiff", "modularity")
 			}
 		}
 	}
@@ -574,20 +578,65 @@ for(i in 1:24){
 
 colnames(summarizedWeeklyNetProps)	<- c("week", "group_id", "behavior", 
 		"density", "avgStrength", "edgeDiff", "modularity")
+summarizedWeeklyNetProps$species	<- ifelse(summarizedWeeklyNetProps$group_id %in% c("Diadema 2", "Diadema 3"), "diadema", "fulvus")
 
 summarizedWeeklyNetProps$week		<- as.numeric(summarizedWeeklyNetProps$week)
 summarizedWeeklyNetProps$avgStrength<- as.numeric(summarizedWeeklyNetProps$avgStrength)
+summarizedWeeklyNetProps$density	<- as.numeric(summarizedWeeklyNetProps$density)
+summarizedWeeklyNetProps$edgeDiff	<- as.numeric(summarizedWeeklyNetProps$edgeDiff)
+summarizedWeeklyNetProps$modularity	<- as.numeric(summarizedWeeklyNetProps$modularity)
 summarizedWeeklyNetProps$group_id	<- as.factor(summarizedWeeklyNetProps$group_id)
+summarizedWeeklyNetProps$behavior	<- as.factor(summarizedWeeklyNetProps$behavior)
+summarizedWeeklyNetProps$species	<- as.factor(summarizedWeeklyNetProps$species)
 grm	<- summarizedWeeklyNetProps[summarizedWeeklyNetProps$behavior == "Groom",]
 play	<- summarizedWeeklyNetProps[summarizedWeeklyNetProps$behavior == "Play",]
+cnt	<- summarizedWeeklyNetProps[summarizedWeeklyNetProps$behavior == "Contact",]
+app	<- summarizedWeeklyNetProps[summarizedWeeklyNetProps$behavior == "Approach",]
+prx	<- summarizedWeeklyNetProps[summarizedWeeklyNetProps$behavior == "Proximity",]
 
-plot(play$week, play$avgStrength, col = as.factor(play$group_id), pch = 16)
+setwd("C:/Users/cecil/OneDrive/Desktop/SDC Work/Github Work")
+png("summarizedProximityWeeklyNets.png", width = 8, height = 8, units = "in", res = 300)
+par(mfrow = c(2,2))
+for(i in 1:4){
+	plot(prx$week, prx[,i+3], col = as.factor(prx$group_id), pch = 16, main = colnames(prx)[i+3], xlab = "Week", ylab = "")
+	}
+dev.off()
 
 ############## 
 ### GAMM's ###
 ############## 
-model1 <- gamm(avgStrength ~ s(week), random = list(group_id=~1), data = play, family = gaussian)
 
+##Play results
+#Need to adjust the nesting of group_id inside species 
+#Significant effect of week for diadema but not fulvus, nice seasonal curve higher in dry season than wet season
+model1 <- gamm(avgStrength ~ s(week, by = species), random = list(group_id=~1), data = play, family = gaussian)
+par(mfrow = c(1,2))
+plot(model1$gam, shade = TRUE)
+abline(h=0)
+
+#Significant effect of week for diadema but not fulvus, but struggling to estimate exact curve
+model2 <- gamm(edgeDiff ~ s(week, by = species), random = list(group_id=~1), data = play, family = gaussian)
+#No significant effect of week for either group, although slight seasonal variations for diadema
+model3 <- gamm(density ~ s(week, by = species), random = list(group_id=~1), data = play, family = gaussian)
+#Modularity a mess
+model4 <- gamm(modularity ~ s(week, by = species), random = list(group_id=~1), data = play, family = gaussian)
+
+##Grm
+#Average strength does not depend on week in either species
+#No time effects on anything, edgeDiff is closest but having hard time estimating the curve possibility of group size effects
+model5 <- gamm(avgStrength ~ s(week, by = species), random = list(group_id=~1), data = grm, family = gaussian)
+model6 <- gamm(edgeDiff ~ s(week, by = species), random = list(group_id=~1), data = grm, family = gaussian)
+model7 <- gamm(density ~ s(week, by = species), random = list(group_id=~1), data = grm, family = gaussian)
+model8 <- gamm(modularity ~ s(week, by = species), random = list(group_id=~1), data = grm, family = gaussian)
+
+##Those are the 1 meter proximity
+#Generally stronger seasonal effects for fulvus, significant effect for averageStrength
+model9 <- gamm(avgStrength ~ s(week, by = species), random = list(group_id=~1), data = prx, family = gaussian)
+model10 <- gamm(edgeDiff ~ s(week, by = species), random = list(group_id=~1), data = prx, family = gaussian)
+model11 <- gamm(density ~ s(week, by = species), random = list(group_id=~1), data = prx, family = gaussian)
+model12 <- gamm(modularity ~ s(week, by = species), random = list(group_id=~1), data = prx, family = gaussian)
+	
+	
 ########################################
 ########################################
 ### Temporal Network Models via Amen ###

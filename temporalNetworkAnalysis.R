@@ -9,19 +9,21 @@ library(chron)
 library(stringr)
 library(lubridate)
 library(mgcv)
+library(lme4)
 
 #########################
 #########################
 ### Preparing MF Data ###
 #########################
 #########################
-setwd('C:/Users/cecil/OneDrive/Desktop/SDC Work/Github Work/SeasonalNetworkAnalyses')
+#setwd('C:/Users/cecil/OneDrive/Desktop/SDC Work/Github Work/SeasonalNetworkAnalyses')
+setwd('G:/My Drive/Graduate School/Research/Projects/TemporalNets/SeasonalNetworkAnalyses')
 
 ## Source functions
 source('createNetworkFunction.R') #Edge weights are either counts or duration
 source('createObsMatrix.R')
-source('C:/Users/cecil/OneDrive/Desktop/SDC Work/Github Work/CleanAOData/CleanSocialDataFunctions.R')
-
+#source('C:/Users/cecil/OneDrive/Desktop/SDC Work/Github Work/CleanAOData/CleanSocialDataFunctions.R')
+source('G:/My Drive/Graduate School/Research/AO/CleanAOData/CleanAOData/CleanSocialDataFunctions.R')
 
 ## Connect to database
 drv	<- dbDriver('PostgreSQL') ##Be sure to use real database name
@@ -509,26 +511,28 @@ focalListNoOdilon$conWeek	<- ifelse(focalListNoOdilon$week > 30,
 				   focalListNoOdilon$week - 36, focalListNoOdilon$week + 13)
 # real data starts with week 1 in the conWeek variable which loops betweem Dec and Jan
 # training is weeks -4 to 0
+
 groups				<- c("Diadema 2", "Diadema 3", "Fulvus 2", "Fulvus 3")
 behaviors				<- c("Groom", "Play", "Contact", "Proximity")
 summarizedWeeklyNetProps	<- data.frame(week = numeric(), 
 						group = character(), behav = character(), 
 						density = numeric(), avgStrength = numeric(),
 						edgeDiff = numeric(), modularity = numeric())
+
 cv	<- function(data){
-		return(sd(data, na.rm = TRUE)/mean(data, na.rm = TRUE))
-		}
+	return(sd(data, na.rm = TRUE)/mean(data, na.rm = TRUE))
+}
 
 for(i in 1:24){
 	for(j in groups){
 		for(k in behaviors){
-			print(i)
-			print(j)
-			print(k)
+			#print(i)
+			#print(j)
+			#print(k)
 			subset	<- socialData3[socialData3$conWeek == i & 
 						socialData3$group_id == j & 
 						socialData3$behavior == k,]
-			print(dim(subset))
+			#print(dim(subset))
 			if(dim(subset)[1] == 0){
 				next
 			}
@@ -578,16 +582,18 @@ for(i in 1:24){
 
 colnames(summarizedWeeklyNetProps)	<- c("week", "group_id", "behavior", 
 		"density", "avgStrength", "edgeDiff", "modularity")
+
 summarizedWeeklyNetProps$species	<- ifelse(summarizedWeeklyNetProps$group_id %in% c("Diadema 2", "Diadema 3"), "diadema", "fulvus")
 
-summarizedWeeklyNetProps$week		<- as.numeric(summarizedWeeklyNetProps$week)
-summarizedWeeklyNetProps$avgStrength<- as.numeric(summarizedWeeklyNetProps$avgStrength)
-summarizedWeeklyNetProps$density	<- as.numeric(summarizedWeeklyNetProps$density)
-summarizedWeeklyNetProps$edgeDiff	<- as.numeric(summarizedWeeklyNetProps$edgeDiff)
-summarizedWeeklyNetProps$modularity	<- as.numeric(summarizedWeeklyNetProps$modularity)
-summarizedWeeklyNetProps$group_id	<- as.factor(summarizedWeeklyNetProps$group_id)
-summarizedWeeklyNetProps$behavior	<- as.factor(summarizedWeeklyNetProps$behavior)
-summarizedWeeklyNetProps$species	<- as.factor(summarizedWeeklyNetProps$species)
+summarizedWeeklyNetProps$week			<- as.numeric(summarizedWeeklyNetProps$week)
+summarizedWeeklyNetProps$avgStrength	<- as.numeric(summarizedWeeklyNetProps$avgStrength)
+summarizedWeeklyNetProps$density		<- as.numeric(summarizedWeeklyNetProps$density)
+summarizedWeeklyNetProps$edgeDiff		<- as.numeric(summarizedWeeklyNetProps$edgeDiff)
+summarizedWeeklyNetProps$modularity		<- as.numeric(summarizedWeeklyNetProps$modularity)
+summarizedWeeklyNetProps$group_id		<- as.factor(summarizedWeeklyNetProps$group_id)
+summarizedWeeklyNetProps$behavior		<- as.factor(summarizedWeeklyNetProps$behavior)
+summarizedWeeklyNetProps$species		<- as.factor(summarizedWeeklyNetProps$species)
+
 grm	<- summarizedWeeklyNetProps[summarizedWeeklyNetProps$behavior == "Groom",]
 play	<- summarizedWeeklyNetProps[summarizedWeeklyNetProps$behavior == "Play",]
 cnt	<- summarizedWeeklyNetProps[summarizedWeeklyNetProps$behavior == "Contact",]
@@ -611,7 +617,7 @@ dev.off()
 #Significant effect of week for diadema but not fulvus, nice seasonal curve higher in dry season than wet season
 model1 <- gamm(avgStrength ~ s(week, by = species), random = list(group_id=~1), data = play, family = gaussian)
 par(mfrow = c(1,2))
-plot(model1$gam, shade = TRUE)
+plot(model2$gam, shade = TRUE)
 abline(h=0)
 
 #Significant effect of week for diadema but not fulvus, but struggling to estimate exact curve
@@ -636,6 +642,18 @@ model10 <- gamm(edgeDiff ~ s(week, by = species), random = list(group_id=~1), da
 model11 <- gamm(density ~ s(week, by = species), random = list(group_id=~1), data = prx, family = gaussian)
 model12 <- gamm(modularity ~ s(week, by = species), random = list(group_id=~1), data = prx, family = gaussian)
 	
+model13 <- gamm(avgStrength ~ s(week, by = species), random = list(group_id=~1), data = cnt, family = gaussian)
+model14 <- gamm(edgeDiff ~ s(week, by = species), random = list(group_id=~1), data = cnt, family = gaussian)
+model15 <- gamm(density ~ s(week, by = species), random = list(group_id=~1), data = cnt, family = gaussian)
+model16 <- gamm(modularity ~ s(week, by = species), random = list(group_id=~1), data = cnt, family = gaussian)
+	
+	
+model17 <- gamm(avgStrength ~ s(week, by = group_id), random = list(group_id=~1), data = app, family = gaussian)
+model18 <- gamm(edgeDiff ~ s(week, by = species), random = list(group_id=~1), data = app, family = gaussian)
+model19 <- gamm(density ~ s(week, by = species), random = list(group_id=~1), data = app, family = gaussian)
+model20 <- gamm(modularity ~ s(week, by = species), random = list(group_id=~1), data = app, family = gaussian)
+	
+
 	
 ########################################
 ########################################
@@ -647,6 +665,7 @@ library(amen)
 demo	<- read.csv("C:/Users/cecil/OneDrive/Desktop/Github Work/demographicData.csv")
 
 demo 	<- demo[order(demo$ID),]
+
 ##########################################
 ### Organizing demographic information ###
 ##########################################

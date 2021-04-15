@@ -16,14 +16,14 @@ library(lme4)
 ### Preparing MF Data ###
 #########################
 #########################
-#setwd('C:/Users/cecil/OneDrive/Desktop/SDC Work/Github Work/SeasonalNetworkAnalyses')
-setwd('G:/My Drive/Graduate School/Research/Projects/TemporalNets/SeasonalNetworkAnalyses')
+setwd('C:/Users/cecil/OneDrive/Desktop/SDC Work/Github Work/SeasonalNetworkAnalyses')
+#setwd('G:/My Drive/Graduate School/Research/Projects/TemporalNets/SeasonalNetworkAnalyses')
 
 ## Source functions
 source('createNetworkFunction.R') #Edge weights are either counts or duration
 source('createObsMatrix.R')
-#source('C:/Users/cecil/OneDrive/Desktop/SDC Work/Github Work/CleanAOData/CleanSocialDataFunctions.R')
-source('G:/My Drive/Graduate School/Research/AO/CleanAOData/CleanAOData/CleanSocialDataFunctions.R')
+source('C:/Users/cecil/OneDrive/Desktop/SDC Work/Github Work/CleanAOData/CleanSocialDataFunctions.R')
+#source('G:/My Drive/Graduate School/Research/AO/CleanAOData/CleanAOData/CleanSocialDataFunctions.R')
 
 ## Connect to database
 drv	<- dbDriver('PostgreSQL') ##Be sure to use real database name
@@ -88,7 +88,7 @@ cleaned	<- cleanAllFocalData(socialSub, cleanedData, errorFile)
 
 socialData	<- cleaned[[1]]
 
-table(rot6$pin_code_name)
+
 
 #####################################
 ### Getting focal list sorted out ###
@@ -125,7 +125,7 @@ focalListNoOdilon$focalDuration		<- as.numeric(focalListNoOdilon$focal_stop_chro
 ### Preparing KMNP Data ###
 ###########################
 ###########################
-setwd('G:/My Drive/Graduate School/Research/Projects/KMNPLongTermData/Meredith Corrected KMNP Long Term Data')
+#setwd('G:/My Drive/Graduate School/Research/Projects/KMNPLongTermData/Meredith Corrected KMNP Long Term Data')
 
 socialDataKMNP	<- read.csv('All_Social_Data_8-25-20.csv', stringsAsFactors = FALSE)
 scan			<- read.csv('Focal Activity NN combined clean 11-16-20_ML.csv')
@@ -425,7 +425,8 @@ f3nets	<- lapply(matRates[[4]], graph_from_adjacency_matrix, mode = "directed", 
 v3nets	<- lapply(v3MatRates, graph_from_adjacency_matrix, mode = "directed", weighted = TRUE, add.rownames = TRUE)
 v6nets	<- lapply(v6MatRates, graph_from_adjacency_matrix, mode = "directed", weighted = TRUE, add.rownames = TRUE)
 
-nets		<- list(d2nets, d3nets, f2nets, f3nets, v3nets, v6nets)
+#nets		<- list(d2nets, d3nets, f2nets, f3nets, v3nets, v6nets)
+nets		<- list(d2nets, d3nets, f2nets, f3nets)
 
 set.seed(7) #321 for 2-4, #7 for 1 and 6
 layd2	<- layout.fruchterman.reingold(d2nets[[2]])
@@ -518,11 +519,18 @@ summarizedWeeklyNetProps	<- data.frame(week = numeric(),
 						group = character(), behav = character(), 
 						density = numeric(), avgStrength = numeric(),
 						edgeDiff = numeric(), modularity = numeric())
+summarizedMonthlyNetProps	<- data.frame(rotation = numeric(), 
+						group = character(), behav = character(), 
+						density = numeric(), avgStrength = numeric(),
+						edgeDiff = numeric(), modularity = numeric())
+
+
 
 cv	<- function(data){
 	return(sd(data, na.rm = TRUE)/mean(data, na.rm = TRUE))
 }
 
+#Weekly 
 for(i in 1:24){
 	for(j in groups){
 		for(k in behaviors){
@@ -580,9 +588,68 @@ for(i in 1:24){
 	}
 }
 
+#Monthly
+for(i in 1:6){
+	for(j in groups){
+		for(k in behaviors){
+			#print(i)
+			#print(j)
+			#print(k)
+			subset	<- socialData3[socialData3$rotation == i & 
+						socialData3$group_id == j & 
+						socialData3$behavior == k,]
+			#print(dim(subset))
+			if(dim(subset)[1] == 0){
+				next
+			}
+			obsSubset	<- focalListNoOdilon[focalListNoOdilon$rotation == i &
+					   focalListNoOdilon$group_id == j,]
+			obsSubset$focal_individual_id	<- factor(obsSubset$focal_individual_id)
+			focalTable		<- data.frame(focal_individual_id = levels(obsSubset$focal_individual_id), duration = tapply(obsSubset$focalDuration, obsSubset$focal_individual_id, FUN = sum))
+			obsMat		<- createObsMatrix(focalTable)
+			if(k == "Proximity"){
+				prxMat	<- createNet(subset$actor, subset$subject, subset$behavior, k, subjects = levels(obsSubset$focal_individual_id), type = 'duration', durs = subset$duration)
+				appMat	<- createNet(subset$actor, subset$subject, subset$behavior, k, subjects = levels(obsSubset$focal_individual_id), type = 'count')
+ 				prxMatAdj	<- prxMat/obsMat
+				appMatAdj	<- appMat/obsMat
+				prxNet	<- graph_from_adjacency_matrix(prxMatAdj, mode = "directed", weighted = TRUE, add.rownames = TRUE)
+				appNet	<- graph_from_adjacency_matrix(appMatAdj, mode = "directed", weighted = TRUE, add.rownames = TRUE)
+				prxDen	<- edge_density(prxNet)
+				appDen	<- edge_density(appNet)
+				prxStrength	<- mean(strength(prxNet, mode = "all", weights = E(prxNet)$weight))
+				appStrength <- mean(strength(appNet, mode = "all", weights = E(appNet)$weight))
+				prxMod	<- modularity(prxNet, membership = membership(cluster_optimal(prxNet)), E(prxNet)$weight)
+				appMod	<- modularity(appNet, membership = membership(cluster_optimal(appNet)), E(appNet)$weight)
+				prxEdgeDiff	<- cv(E(prxNet)$weight)
+				appEdgeDiff	<- cv(E(appNet)$weight)
+				prxLine	<- c(rotation = i, group = j, behav = k, density = prxDen, avgStrength = prxStrength, edgeDiff = prxEdgeDiff, modularity = prxMod)
+				appLine	<- c(rotation = i, group = j, behav = "Approach", density = appDen, avgStrength = appStrength, edgeDiff = appEdgeDiff, modularity = appMod)		
+				twoLines	<- rbind(prxLine, appLine)
+				colnames(twoLines)	<- c("rotation", "group_id", "behavior", 
+								"density", "avgStrength", "edgeDiff", "modularity")
+				summarizedMonthlyNetProps<- rbind(summarizedMonthlyNetProps, twoLines, stringsAsFactors = FALSE)
+			}
+			else{
+				behavMat	<- createNet(subset$actor, subset$subject, subset$behavior, k, subjects = levels(obsSubset$focal_individual_id), type = 'duration', durs = subset$duration)
+				behavMatAdj	<- behavMat/obsMat
+				behavNet	<- graph_from_adjacency_matrix(behavMatAdj, mode = "directed", weighted = TRUE, add.rownames = TRUE)
+				behavDen	<- edge_density(behavNet)
+				behavStrength<- mean(strength(behavNet, mode = "all", weights = E(behavNet)$weight))
+				behavMod	<- modularity(behavNet, membership = membership(cluster_optimal(behavNet)), E(behavNet)$weight)
+				behavEdgeDiff<- cv(E(behavNet)$weight)
+				behavLine	<- c(rotation = i, group = j, behav = k, density = behavDen, avgStrength = behavStrength, edgeDiff = behavEdgeDiff, modularity = behavMod)
+				summarizedMonthlyNetProps<- rbind(summarizedMonthlyNetProps, behavLine, stringsAsFactors = FALSE)
+				colnames(summarizedMonthlyNetProps)	<- c("rotation", "group_id", "behavior", 
+									"density", "avgStrength", "edgeDiff", "modularity")
+			}
+		}
+	}
+}
+
 colnames(summarizedWeeklyNetProps)	<- c("week", "group_id", "behavior", 
 		"density", "avgStrength", "edgeDiff", "modularity")
 
+#Weekly
 summarizedWeeklyNetProps$species	<- ifelse(summarizedWeeklyNetProps$group_id %in% c("Diadema 2", "Diadema 3"), "diadema", "fulvus")
 
 summarizedWeeklyNetProps$week			<- as.numeric(summarizedWeeklyNetProps$week)
@@ -600,12 +667,42 @@ cnt	<- summarizedWeeklyNetProps[summarizedWeeklyNetProps$behavior == "Contact",]
 app	<- summarizedWeeklyNetProps[summarizedWeeklyNetProps$behavior == "Approach",]
 prx	<- summarizedWeeklyNetProps[summarizedWeeklyNetProps$behavior == "Proximity",]
 
+#Monthly
+summarizedMonthlyNetProps$species	<- ifelse(summarizedMonthlyNetProps$group_id %in% c("Diadema 2", "Diadema 3"), "diadema", "fulvus")
+
+summarizedMonthlyNetProps$rotation		<- as.numeric(summarizedMonthlyNetProps$rotation)
+summarizedMonthlyNetProps$avgStrength	<- as.numeric(summarizedMonthlyNetProps$avgStrength)
+summarizedMonthlyNetProps$density		<- as.numeric(summarizedMonthlyNetProps$density)
+summarizedMonthlyNetProps$edgeDiff		<- as.numeric(summarizedMonthlyNetProps$edgeDiff)
+summarizedMonthlyNetProps$modularity	<- as.numeric(summarizedMonthlyNetProps$modularity)
+summarizedMonthlyNetProps$group_id		<- as.factor(summarizedMonthlyNetProps$group_id)
+summarizedMonthlyNetProps$behavior		<- as.factor(summarizedMonthlyNetProps$behavior)
+summarizedMonthlyNetProps$species		<- as.factor(summarizedMonthlyNetProps$species)
+
+summarizedMonthlyNetProps$color	<- ifelse(summarizedMonthlyNetProps$group_id == "Diadema 2", "#27408b",
+							ifelse(summarizedMonthlyNetProps$group_id == "Diadema 3", "#36648b",
+							ifelse(summarizedMonthlyNetProps$group_id == "Fulvus 2", "#8b5a00",
+							"#eec900"))) 
+grmMonth	<- summarizedMonthlyNetProps[summarizedMonthlyNetProps$behavior == "Groom",]
+playMonth	<- summarizedMonthlyNetProps[summarizedMonthlyNetProps$behavior == "Play",]
+cntMonth	<- summarizedMonthlyNetProps[summarizedMonthlyNetProps$behavior == "Contact",]
+appMonth	<- summarizedMonthlyNetProps[summarizedMonthlyNetProps$behavior == "Approach",]
+prxMonth	<- summarizedMonthlyNetProps[summarizedMonthlyNetProps$behavior == "Proximity",]
+
+
 setwd("C:/Users/cecil/OneDrive/Desktop/SDC Work/Github Work")
 png("summarizedProximityWeeklyNets.png", width = 8, height = 8, units = "in", res = 300)
 par(mfrow = c(2,2))
 for(i in 1:4){
 	plot(prx$week, prx[,i+3], col = as.factor(prx$group_id), pch = 16, main = colnames(prx)[i+3], xlab = "Week", ylab = "")
 	}
+dev.off()
+
+png("summarizedcontactMonthlyNets.png", width = 8, height = 8, units = "in", res = 300)
+par(mfrow = c(2,2))
+for(i in 1:4){
+	plot(cntMonth$rotation, cntMonth[,i+3], col = cntMonth$color, pch = 16, main = colnames(cntMonth)[i+3], xlab = "Rotation", ylab = "")
+	} 
 dev.off()
 
 ############## 
@@ -615,10 +712,17 @@ dev.off()
 ##Play results
 #Need to adjust the nesting of group_id inside species 
 #Significant effect of week for diadema but not fulvus, nice seasonal curve higher in dry season than wet season
-model1 <- gamm(avgStrength ~ s(week, by = species), random = list(group_id=~1), data = play, family = gaussian)
+model1 <- gamm(avgStrength ~ s(rotation, k = 5, by = species), random = list(group_id=~1), data = playMonth, family = gaussian)
+
+png("MonthlyAveStrengthPlayGamm.png")
 par(mfrow = c(1,2))
-plot(model2$gam, shade = TRUE)
-abline(h=0)
+plot(model1$gam, shade = TRUE, select = 1, ylab = "Smoothed Effect of Month", xaxt = "n", xlab = "Month", main = "Diadema")
+axis(1, at = seq(from = 1, to = 6, length.out = 7), labels = c("Sept", "Oct", "Nov", "Dec", "Jan", "Feb", "Mar"))
+abline(h=0, lty = 5, col = "red")
+
+plot(model1$gam, shade = TRUE, select = 2, ylab = "Smoothed Effect of Month", xaxt = "n", xlab = "Month", main = "Fulvus")
+axis(1, at = seq(from = 1, to = 6, length.out = 7), labels = c("Sept", "Oct", "Nov", "Dec", "Jan", "Feb", "Mar"))
+abline(h=0, lty = 5, col = "red")
 
 #Significant effect of week for diadema but not fulvus, but struggling to estimate exact curve
 model2 <- gamm(edgeDiff ~ s(week, by = species), random = list(group_id=~1), data = play, family = gaussian)

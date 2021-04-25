@@ -712,7 +712,76 @@ dev.off()
 ##Play results
 #Need to adjust the nesting of group_id inside species 
 #Significant effect of week for diadema but not fulvus, nice seasonal curve higher in dry season than wet season
-model1 <- gamm(avgStrength ~ s(rotation, k = 5, by = species), random = list(group_id=~1), data = playMonth, family = gaussian)
+model1 <- gamm(avgStrength ~ s(rotation, k = 4, by = species), random = list(group_id=~1), data = grmMonth, family = gaussian)
+
+###Plot for presentation
+#Sig effect of grm in fulvus
+N			<- length(model1$gam$fit)
+nd_rotation 	<- seq(1,6,length=N)
+nd_diadema		<- data.frame(rotation = nd_rotation,  group_id = rep('Diadema 2', N), species = rep('diadema', N))
+nd_fulvus		<- data.frame(rotation = nd_rotation, species = rep('fulvus', N), newgroup = rep('Fulvus 2', N))
+predictedFulvusGrm	<- predict(model1$gam, newdata = nd_fulvus, type = 'response', se.fit = TRUE)
+predictedDiademaGrm	<- predict(model1$gam, newdata = nd_diadema, type = 'response', se.fit = TRUE)
+
+theta_hatFulvusGrm	<- predictedFulvusGrm$fit 
+theta_hatDiademaGrm	<- predictedDiademaGrm$fit 
+
+x 				<- nd_rotation
+ub_thetaFulvusGrm		<- theta_hatFulvusGrm + qnorm(0.975)*predictedFulvusGrm$se.fit/2
+lb_thetaFulvusGrm		<- theta_hatFulvusGrm - qnorm(0.975)*predictedFulvusGrm$se.fit/2
+ub_thetaDiademaGrm	<- theta_hatDiademaGrm + qnorm(0.975)*predictedDiademaGrm$se.fit/2
+lb_thetaDiademaGrm	<- theta_hatDiademaGrm - qnorm(0.975)*predictedDiademaGrm$se.fit/2
+xx				<- c(x,rev(x))
+yy_thetaFulvusGrm		<- c(ub_thetaFulvusGrm,rev(lb_thetaFulvusGrm))
+yy_thetaDiademaGrm	<- c(ub_thetaDiademaGrm,rev(lb_thetaDiademaGrm))
+
+fulvusLine	<- rgb(139, 90, 0, max = 255)
+fulvusPoly	<- rgb(139/255, 90/255, 0/255, alpha = 0.25)
+diademaLine	<- rgb(0, 32, 96, max = 255)
+diademaPoly	<- rgb(0, 32/255, 96/255, alpha = 0.25)
+
+png("PredictedDiademaFulvusGAMGroomingAvgStrength.png", units = 'in', width = 8, height = 8, res = 300)
+matplot(x,cbind(theta_hatDiademaGrm, theta_hatFulvusGrm),lty = c(1, 1),lwd = c(2, 2),
+	col = c(diademaLine, fulvusLine), cex.lab = 1.5, cex.axis = 1.5, 
+	ylim = c(25, 125), ylab = 'Predicted Average Strength of Groom', 
+	xaxt = "n", type = 'l', xlab = 'Month')
+axis(1, cex.axis = 1.5, at = seq(from = 1, to = 6, length.out = 7), labels = c("Sept", "Oct", "Nov", "Dec", "Jan", "Feb", "Mar"))
+box()
+polygon(xx, yy_thetaDiademaGrm, col = diademaPoly, border = NA)
+polygon(xx, yy_thetaFulvusGrm, col = fulvusPoly, border = NA)
+dev.off()
+
+model1b <- gamm(avgStrength ~ s(rotation, k = 4, by = species), random = list(group_id=~1), data = playMonth, family = gaussian)
+
+###Plot for presentation
+#Sig effect of ply  in diadema
+nd_rotation 	<- seq(1,6,length=N)
+predictedFulvusPly	<- predict(model1b$gam, newdata = nd_fulvus, type = 'response', se.fit = TRUE)
+predictedDiademaPly	<- predict(model1b$gam, newdata = nd_diadema, type = 'response', se.fit = TRUE)
+
+theta_hatDiademaPly	<- predictedDiademaPly$fit 
+theta_hatFulvusPly	<- predictedFulvusPly$fit 
+
+ub_thetaDiademaPly	<- theta_hatDiademaPly + qnorm(0.975)*predictedDiademaPly$se.fit/2
+lb_thetaDiademaPly	<- theta_hatDiademaPly - qnorm(0.975)*predictedDiademaPly$se.fit/2
+ub_thetaFulvusPly		<- theta_hatFulvusPly + qnorm(0.975)*predictedFulvusPly$se.fit/2
+lb_thetaFulvusPly		<- theta_hatFulvusPly - qnorm(0.975)*predictedFulvusPly$se.fit/2
+yy_thetaDiademaPly	<- c(ub_thetaDiademaPly,rev(lb_thetaDiademaPly))
+yy_thetaFulvusPly		<- c(ub_thetaFulvusPly,rev(lb_thetaFulvusPly))
+
+
+
+png("PredictedDiademaFulvusGAMPlayAvgStrength.png", units = 'in', width = 8, height = 8, res = 300)
+matplot(x,cbind(theta_hatDiademaPly, theta_hatFulvusPly),lty = c(1, 1),lwd = c(2, 2),
+	col = c(diademaLine, fulvusLine), cex.lab = 1.5, cex.axis = 1.5, 
+	ylim = c(-30, 100), ylab = 'Predicted Average Strength of Play', 
+	xaxt = "n", type = 'l', xlab = 'Month')
+axis(1, cex.axis = 1.5, at = seq(from = 1, to = 6, length.out = 7), labels = c("Sept", "Oct", "Nov", "Dec", "Jan", "Feb", "Mar"))
+box()
+polygon(xx, yy_thetaDiademaPly, col = diademaPoly, border = NA)
+polygon(xx, yy_thetaFulvusPly, col = fulvusPoly, border = NA)
+dev.off()
+
 
 png("MonthlyAveStrengthPlayGamm.png")
 par(mfrow = c(1,2))

@@ -235,3 +235,90 @@ text(2, 587.5, "Birthing", xpd = TRUE, adj = c(0.5, 0.5), col = 'white', font = 
 text(4.5, 587.5, "Lactation", xpd = TRUE, adj = c(0.5, 0.5), col = 'black', font = 2)
 dev.off()
 
+#########################################
+### Figure for ABGG talk introduction ###
+#########################################
+diadema	<- rbind(diadema, c(4, 'diadema', .6, 9))
+diadema	<- rbind(diadema, c(5, 'diadema', .5, 10))
+fulvus	<- rbind(fulvus, c(4, 'fulvus', .9, 9))
+fulvus	<- rbind(fulvus, c(5, 'fulvus', .93, 10))
+
+diadema$x	<- as.numeric(diadema$x)
+diadema$month	<- as.numeric(diadema$month)
+
+fulvus$x	<- as.numeric(fulvus$x)
+fulvus$month	<- as.numeric(fulvus$month)
+
+diadema	<- diadema[order(diadema$month),]
+fulvus	<- fulvus[order(fulvus$month),]
+
+
+#smoothed climate
+avgClimateMF$smoothedRain	<- avgClimateMF$totalRain
+avgClimateMF[2,]$smoothedRain	<- 250
+avgClimateMF[10,]$smoothedRain	<- 50
+avgClimateMF[6,]$smoothedRain	<- 125
+avgClimateMF[1,]$smoothedRain	<- 335
+
+
+png('DiademaFulvusSeasonalTimeline.png', res = 300, width = 12, height = 6, units = 'in')
+par(mar = c(5, 5, 3, 5), bty = 'u')
+plot(diadema$month, 100*diadema$x, pch = 16, lwd = 2, type = 'l', yaxt = 'n', xaxt = 'n', col = 'midnightblue',
+	 xlab = 'Month', ylab = '', ylim = c(0, 125))
+points(fulvus$month, 100*fulvus$x, pch = 16, lwd = 2, type = 'l', yaxt = 'n', xaxt = 'n', col = 'orange4')
+axis(side = 2, labels = c(0, 25, 50, 75, 100), at = c(0, 25, 50, 75, 100))
+text(-0.25, 50, "% plant reproductive parts in diet", srt = 90,  xpd = TRUE, adj = c(NA, 0.5))
+par(new = TRUE)
+plot(avgClimateMF$month, avgClimateMF$smoothedRain, pch = 16, type = 'l', lwd = 2, lty = 5, xaxt = 'n', yaxt = 'n', ylab = '', xlab = '', ylim = c(0, 400))
+axis(1, at = 1:12, labels = c('J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'))
+axis(side = 4, labels = NA, at = c(0, 100, 200, 300, 400))
+text(13.25, 200, "Monthly rainfall (mm)", srt = -90, xpd = TRUE, adj = c(NA, 0.5))
+text(12.75, 200, "200", srt = -90, xpd = TRUE, adj = c(NA, 0.5))
+text(12.75, 0, "0", srt = -90, xpd = TRUE, adj = c(NA, 0.5))
+text(12.75, 100, "100", srt = -90, xpd = TRUE, adj = c(NA, 0.5))
+text(12.75, 300, "300", srt = -90, xpd = TRUE, adj = c(NA, 0.5))
+text(12.75, 400, "400", srt = -90, xpd = TRUE, adj = c(NA, 0.5))
+rect(1, 375, 2.75, 400, col = 'midnightblue', border = 'midnightblue', lwd = 2)
+rect(2.75, 375, 7, 400, col = 'steelblue1', border = 'midnightblue', lwd = 2)
+rect(7, 375, 8.75, 400, col = 'midnightblue', border = 'midnightblue', lwd = 2)
+rect(8.75, 375, 12, 400, col = 'steelblue1', border = 'midnightblue', lwd = 2)
+text(1.875, 387.5, "Mating", xpd = TRUE, adj = c(0.5, 0.5), col = 'white', font = 2)
+text(4.875, 387.5, "Gestation", xpd = TRUE, adj = c(0.5, 0.5), col = 'black', font = 2)
+text(7.875, 387.5, "Birthing", xpd = TRUE, adj = c(0.5, 0.5), col = 'white', font = 2)
+text(10.375, 387.5, "Lactation", xpd = TRUE, adj = c(0.5, 0.5), col = 'black', font = 2)
+rect(4.5, 340, 5.75, 365, col = 'orange4', border = 'orange4', lwd = 2)
+rect(5.75, 340, 8.5, 365, col = 'gold2', border = 'orange4', lwd = 2)
+rect(8.5, 340, 9.75, 365, col = 'orange4', border = 'orange4', lwd = 2)
+rect(9.75, 340, 12, 365, col = 'gold2', border = 'orange4', lwd = 2)
+text(5.125, 352.5, "Mating", xpd = TRUE, adj = c(0.5, 0.5), col = 'white', font = 2)
+text(7.125, 352.5, "Gestation", xpd = TRUE, adj = c(0.5, 0.5), col = 'black', font = 2)
+text(9.125, 352.5, "Birthing", xpd = TRUE, adj = c(0.5, 0.5), col = 'white', font = 2)
+text(10.875, 352.5, "Lactation", xpd = TRUE, adj = c(0.5, 0.5), col = 'black', font = 2)
+dev.off()
+
+png('DiademaSeasonalTimeline.png', res = 300, width = 12, height = 6, units = 'in')
+par(mar = c(5, 5, 3, 5), bty = 'u')
+plot(diadema$month, 100*diadema$x, pch = 16, lwd = 2, type = 'l', yaxt = 'n', xaxt = 'n', col = 'midnightblue',
+	 xlab = 'Month', ylab = '', ylim = c(0, 125))
+axis(side = 2, labels = c(0, 25, 50, 75, 100), at = c(0, 25, 50, 75, 100))
+text(-0.25, 50, "% plant reproductive parts in diet", srt = 90,  xpd = TRUE, adj = c(NA, 0.5))
+par(new = TRUE)
+plot(avgClimateMF$month, avgClimateMF$smoothedRain, pch = 16, type = 'l', lwd = 2, lty = 5, xaxt = 'n', yaxt = 'n', ylab = '', xlab = '', ylim = c(0, 400))
+axis(1, at = 1:12, labels = c('J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'))
+axis(side = 4, labels = NA, at = c(0, 100, 200, 300, 400))
+text(13.25, 200, "Monthly rainfall (mm)", srt = -90, xpd = TRUE, adj = c(NA, 0.5))
+text(12.75, 200, "200", srt = -90, xpd = TRUE, adj = c(NA, 0.5))
+text(12.75, 0, "0", srt = -90, xpd = TRUE, adj = c(NA, 0.5))
+text(12.75, 100, "100", srt = -90, xpd = TRUE, adj = c(NA, 0.5))
+text(12.75, 300, "300", srt = -90, xpd = TRUE, adj = c(NA, 0.5))
+text(12.75, 400, "400", srt = -90, xpd = TRUE, adj = c(NA, 0.5))
+rect(1, 375, 2.75, 400, col = 'midnightblue', border = 'midnightblue', lwd = 2)
+rect(2.75, 375, 7, 400, col = 'steelblue1', border = 'midnightblue', lwd = 2)
+rect(7, 375, 8.75, 400, col = 'midnightblue', border = 'midnightblue', lwd = 2)
+rect(8.75, 375, 12, 400, col = 'steelblue1', border = 'midnightblue', lwd = 2)
+text(1.875, 387.5, "Mating", xpd = TRUE, adj = c(0.5, 0.5), col = 'white', font = 2)
+text(4.875, 387.5, "Gestation", xpd = TRUE, adj = c(0.5, 0.5), col = 'black', font = 2)
+text(7.875, 387.5, "Birthing", xpd = TRUE, adj = c(0.5, 0.5), col = 'white', font = 2)
+text(10.375, 387.5, "Lactation", xpd = TRUE, adj = c(0.5, 0.5), col = 'black', font = 2)
+dev.off()
+

@@ -4,7 +4,7 @@
 library(RPostgreSQL)
 library(igraph)
 
-setwd('G:/My Drive/Graduate School/Research/Projects/TemporalNets')
+setwd('G:/My Drive/Graduate School/Research/Projects/TemporalNets/SeasonalNetworkAnalyses')
 source('createNetworkFunction.R')
 source('createObsMatrix.R')
 

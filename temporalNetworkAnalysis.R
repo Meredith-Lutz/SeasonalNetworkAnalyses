@@ -743,7 +743,7 @@ diademaPoly	<- rgb(0, 32/255, 96/255, alpha = 0.25)
 png("PredictedDiademaFulvusGAMGroomingAvgStrength.png", units = 'in', width = 8, height = 8, res = 300)
 matplot(x,cbind(theta_hatDiademaGrm, theta_hatFulvusGrm),lty = c(1, 1),lwd = c(2, 2),
 	col = c(diademaLine, fulvusLine), cex.lab = 1.5, cex.axis = 1.5, 
-	ylim = c(25, 125), ylab = 'Predicted Average Strength of Groom', 
+	ylim = c(25, 125), ylab = 'Predicted Average Strength of Grooming', 
 	xaxt = "n", type = 'l', xlab = 'Month')
 axis(1, cex.axis = 1.5, at = seq(from = 1, to = 6, length.out = 7), labels = c("Sept", "Oct", "Nov", "Dec", "Jan", "Feb", "Mar"))
 box()

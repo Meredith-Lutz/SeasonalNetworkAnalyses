@@ -1,6 +1,6 @@
 createNet	<- function(actor, recipient, behavior, behav1, 
 	behav2 = FALSE, behav3 = FALSE, subjects, directional = TRUE, 
-	type, durs = FALSE){
+	type, durs = NA){
 	# actor is a variable in a data frame giving the actors of the interactions
 	# recipient is a variable in a data frame giving the recipients of interactions
 	# behavior is a variable in a data frame giving the behaviors that occurred
@@ -13,10 +13,10 @@ createNet	<- function(actor, recipient, behavior, behav1,
 	# durs is a vector of all of the duration of behaviors
 	# Last updated 5/21/2018 by ML
 
-	if(durs[1] != FALSE){
+	if(is.na(durs[1]) == FALSE){
 		dataFull	<- data.frame(actor, behavior, recipient, durs)
 	}
-	if(durs == FALSE){
+	if(is.na(durs[1]) == TRUE){
 		dataFull	<- data.frame(actor, behavior, recipient)
 	}
 	n		<- length(subjects)
@@ -56,14 +56,14 @@ createNet	<- function(actor, recipient, behavior, behav1,
 			}
 			if(type == 'duration'){
 				subset1	<- subset(data1, actor == act & recipient == rec & behavior == behav1)
-				mat1[i, j]	<- sum(as.numeric(subset1$durs))
+				mat1[i, j]	<- sum(as.numeric(subset1$durs), na.rm = TRUE)
 				if(behav2 != FALSE){
 					subset2	<- subset(data2, actor == act & recipient == rec & behavior == behav2)
-					mat2[i, j]	<- sum(as.numeric(subset2$durs))
+					mat2[i, j]	<- sum(as.numeric(subset2$durs), na.rm = TRUE)
 				}
 				if(behav3 != FALSE){
 					subset3	<- subset(data3, actor == act & recipient == rec & behavior == behav3)
-					mat3[i, j]	<- sum(as.numeric(subset3$durs))	
+					mat3[i, j]	<- sum(as.numeric(subset3$durs), na.rm = TRUE)	
 				}
 			}
 		}

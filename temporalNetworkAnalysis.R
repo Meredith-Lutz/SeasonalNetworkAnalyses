@@ -10,30 +10,32 @@ library(stringr)
 library(lubridate)
 library(mgcv)
 library(lme4)
+library(amen)
 
 #########################
 #########################
 ### Preparing MF Data ###
 #########################
 #########################
-setwd('C:/Users/cecil/OneDrive/Desktop/SDC Work/Github Work/SeasonalNetworkAnalyses')
-#setwd('G:/My Drive/Graduate School/Research/Projects/TemporalNets/SeasonalNetworkAnalyses')
+setwd('G:/My Drive/Graduate School/Research/Projects/TemporalNets/SeasonalNetworkAnalyses')
 
 ## Source functions
 source('createNetworkFunction.R') #Edge weights are either counts or duration
 source('createObsMatrix.R')
-source('C:/Users/cecil/OneDrive/Desktop/SDC Work/Github Work/CleanAOData/CleanSocialDataFunctions.R')
-#source('G:/My Drive/Graduate School/Research/AO/CleanAOData/CleanAOData/CleanSocialDataFunctions.R')
+source('G:/My Drive/Graduate School/Research/AO/CleanAOData/CleanAOData/CleanSocialDataFunctions.R')
+
+##Non behavior data
+demo		<- read.csv('G:/My Drive/Graduate School/Research/Field Seasons/FieldSeason2019MF/Demographic Data/demographicData.csv')
+treeData	<- read.csv('G:/My Drive/Graduate School/Research/Projects/SpatialClustering/MF/Lemur Trees Maromizaha/KakazoMisyDisoMarina3SketchyGPSRemoved.csv')
 
 ## Connect to database
 drv	<- dbDriver('PostgreSQL') ##Be sure to use real database name
 con	<- dbConnect(drv, dbname = dbname, host = 'raja.db.elephantsql.com', port = 5432,
 								 user = user, password = password)
 
-
 allData	<- dbGetQuery(con, 'select group_id, pin_code_name, focal_start_time, 
 	focal_end_time, focal_individual_id, behavior_time, actor, subject, category, behavior, start_stop,
-	initiator, mutual, latitude, longitude from main_tables.all_focal_data_view;')
+	initiator, mutual, latitude, longitude, tree_number, part_eaten from main_tables.all_focal_data_view;')
 focalList	<- dbGetQuery(con, 'select main_tables.list_focals.session_start_time, 
 				main_tables.list_focals.focal_start_time, main_tables.list_focals.focal_end_time,
 				main_tables.list_focals.focal_individual_id, main_tables.list_sessions.group_id,
@@ -61,6 +63,7 @@ allData[allData$focal_start_time >= '2020-02-17' & allData$focal_start_time <= '
 dyadIDs	<- apply(as.matrix(allData[, c('actor', 'subject')]), 1, createID)
 allDataID	<- cbind(allData, dyadIDs)
 allDataIDNoNA	<- allDataID[is.na(allDataID$actor) == FALSE,]
+allDataIDNoNA	<- allDataIDNoNA[allDataIDNoNA$pin_code_name != 'Odilon',]
 
 focal_start_str	<- data.frame(str_split_fixed(as.character(allDataIDNoNA$focal_start_time), ' ', n = 2))
 colnames(focal_start_str)	<- c('focal_date', 'focal_time')
@@ -80,15 +83,17 @@ sub		<- social[social$category == 'Submissive' & social$pin_code_name != 'Odilon
 info		<- social[social$category == 'Information' & social$pin_code_name == 'Meredith',]
 grt		<- social[social$behavior == 'Greet' & (social$pin_code_name == 'Onja' | social$pin_code_name == 'Hasina' | social$pin_code_name == 'Diary'),]
 socialSub	<- rbind(affil, agg, sub, info, grt)
+feed		<- allDataIDNoNA[allDataIDNoNA$behavior == 'Feeding',]
 
-cleanedData	<- data.frame()
-errorFile	<- data.frame()
+cleanedDataSoc	<- data.frame()
+errorFileSoc	<- data.frame()
+cleanedSoc		<- cleanAllFocalData(socialSub, cleanedDataSoc, errorFileSoc)
+socialData		<- cleanedSoc[[1]]
 
-cleaned	<- cleanAllFocalData(socialSub, cleanedData, errorFile)
-
-socialData	<- cleaned[[1]]
-
-
+cleanedDataFeed	<- data.frame()
+errorFileFeed	<- data.frame()
+cleanedFeed		<- cleanAllFocalData(feed, cleanedDataFeed, errorFileFeed)
+feedingData		<- cleanedFeed[[1]]
 
 #####################################
 ### Getting focal list sorted out ###
@@ -317,7 +322,6 @@ socialData3	<- socialData2[!((socialData2$actor == 'Rk' | socialData2$subject ==
 gpIIISocial	<- gpIIISocial[gpIIISocial$Initiator %in% verreauxi3 & gpIIISocial$Receiver %in% verreauxi3,]
 gpVISocial	<- gpVISocial[gpVISocial$Initiator %in% verreauxi6 & gpVISocial$Receiver %in% verreauxi6,]
 
-
 #################################################
 ### Plot Monthly Networks for Timeline Figure ###
 #################################################
@@ -523,8 +527,6 @@ summarizedMonthlyNetProps	<- data.frame(rotation = numeric(),
 						group = character(), behav = character(), 
 						density = numeric(), avgStrength = numeric(),
 						edgeDiff = numeric(), modularity = numeric())
-
-
 
 cv	<- function(data){
 	return(sd(data, na.rm = TRUE)/mean(data, na.rm = TRUE))
@@ -769,8 +771,6 @@ lb_thetaFulvusPly		<- theta_hatFulvusPly - qnorm(0.975)*predictedFulvusPly$se.fi
 yy_thetaDiademaPly	<- c(ub_thetaDiademaPly,rev(lb_thetaDiademaPly))
 yy_thetaFulvusPly		<- c(ub_thetaFulvusPly,rev(lb_thetaFulvusPly))
 
-
-
 png("PredictedDiademaFulvusGAMPlayAvgStrength.png", units = 'in', width = 8, height = 8, res = 300)
 matplot(x,cbind(theta_hatDiademaPly, theta_hatFulvusPly),lty = c(1, 1),lwd = c(2, 2),
 	col = c(diademaLine, fulvusLine), cex.lab = 1.5, cex.axis = 1.5, 
@@ -781,7 +781,6 @@ box()
 polygon(xx, yy_thetaDiademaPly, col = diademaPoly, border = NA)
 polygon(xx, yy_thetaFulvusPly, col = fulvusPoly, border = NA)
 dev.off()
-
 
 png("MonthlyAveStrengthPlayGamm.png")
 par(mfrow = c(1,2))
@@ -820,23 +819,16 @@ model14 <- gamm(edgeDiff ~ s(week, by = species), random = list(group_id=~1), da
 model15 <- gamm(density ~ s(week, by = species), random = list(group_id=~1), data = cnt, family = gaussian)
 model16 <- gamm(modularity ~ s(week, by = species), random = list(group_id=~1), data = cnt, family = gaussian)
 	
-	
 model17 <- gamm(avgStrength ~ s(week, by = group_id), random = list(group_id=~1), data = app, family = gaussian)
 model18 <- gamm(edgeDiff ~ s(week, by = species), random = list(group_id=~1), data = app, family = gaussian)
 model19 <- gamm(density ~ s(week, by = species), random = list(group_id=~1), data = app, family = gaussian)
 model20 <- gamm(modularity ~ s(week, by = species), random = list(group_id=~1), data = app, family = gaussian)
-	
-
 	
 ########################################
 ########################################
 ### Temporal Network Models via Amen ###
 ########################################
 ########################################
-library(amen)
-
-demo	<- read.csv("C:/Users/cecil/OneDrive/Desktop/Github Work/demographicData.csv")
-
 demo 	<- demo[order(demo$ID),]
 
 ##########################################
@@ -891,10 +883,145 @@ model1 <- ame_rep(y, Xdyad = dyadCov, Xrow = indivCov, Xcol = indivCov,
 		family = "nrm", R = 0, rvar = TRUE, cvar = TRUE, dcor = TRUE, 
 		symmetric = FALSE)
 # Error in if (!any(apply(X, 3, function(x) { : 
-  missing value where TRUE/FALSE needed
+#  missing value where TRUE/FALSE needed
 # In addition: Warning messages:
-  1: In var(c(x), na.rm = TRUE) : NAs introduced by coercion
-  2: In var(c(x), na.rm = TRUE) : NAs introduced by coercion
+#  1: In var(c(x), na.rm = TRUE) : NAs introduced by coercion
+#  2: In var(c(x), na.rm = TRUE) : NAs introduced by coercion
 
+########################################
+########################################
+### Analyzing seasonality in feeding ###
+########################################
+########################################
+treeData$treeNum			<- paste(treeData$Tree.Number, treeData$Lettre, sep = '')
+sort(socialData$tree_number[!socialData$tree_number %in% unique(treeData$treeNum)])
+socialData[socialData$tree_number == '' & is.na(socialData$tree_number) == FALSE,]
 
+#Which trees are ID'd to species
+feedingDataWithTrees		<- merge(feedingData, treeData, by.x = 'tree_number', by.y = 'treeNum', all.x = TRUE)
+diademaFeedingTrees		<- feedingDataWithTrees[feedingDataWithTrees$group_id == 'Diadema 2' | feedingDataWithTrees$group_id == 'Diadema 3',]
+fulvusFeedingTrees		<- feedingDataWithTrees[feedingDataWithTrees$group_id == 'Fulvus 2' | feedingDataWithTrees$group_id == 'Fulvus 3',]
 
+diademaFeedingSpecies		<- aggregate(diademaFeedingTrees$duration, by = list(diademaFeedingTrees$Anarana.kakazo), FUN = sum)
+diademaFeedingSpecies		<- diademaFeedingSpecies[order(diademaFeedingSpecies$x, decreasing = TRUE),]
+diademaFeedingSpeciesNoNA	<- diademaFeedingSpecies[diademaFeedingSpecies$Group.1 != '',]
+diademaFeedingSpeciesNoNA$cumTotal	<- 0
+for(i in 1:nrow(diademaFeedingSpeciesNoNA)){
+	diademaFeedingSpeciesNoNA[i, 'cumTotal']	<- sum(diademaFeedingSpeciesNoNA[1:i, 'x'])
+}
+diademaFeedingSpeciesNoNA$cumPer	<- diademaFeedingSpeciesNoNA$cumTotal/sum(diademaFeedingSpeciesNoNA$x)
+
+fulvusFeedingSpecies		<- aggregate(fulvusFeedingTrees$duration, by = list(fulvusFeedingTrees$Anarana.kakazo), FUN = sum)
+fulvusFeedingSpecies		<- fulvusFeedingSpecies[order(fulvusFeedingSpecies$x, decreasing = TRUE),]
+fulvusFeedingTreesNoNA		<- fulvusFeedingSpecies[fulvusFeedingSpecies$Group.1 != '',]
+fulvusFeedingTreesNoNA$cumTotal	<- 0
+for(i in 1:nrow(fulvusFeedingTreesNoNA)){
+	fulvusFeedingTreesNoNA[i, 'cumTotal']	<- sum(fulvusFeedingTreesNoNA[1:i, 'x'])
+}
+fulvusFeedingTreesNoNA$cumPer	<- fulvusFeedingTreesNoNA$cumTotal/sum(fulvusFeedingTreesNoNA$x)
+
+png("CumulativeDietCurves.png", units = 'in', width = 25, height = 10, res = 300)
+par(mfrow = c(1, 2))
+plot(1:130, diademaFeedingSpeciesNoNA$cumPer, cex.axis = 1.5, cex.lab = 1.5, xlim = c(0, 130), pch = 16, col = 'midnightblue', ylab = 'Total Percentage of Diet', xlab = 'Cumulative Number of Species')
+abline(h = 0.8, lty = 5, lwd = 2, col = "red")
+abline(h = 0.9, lty = 3, lwd = 2, col = "blue")
+plot(1:127, fulvusFeedingTreesNoNA$cumPer,cex.axis = 1.5, cex.lab = 1.5, xlim = c(0, 130), pch = 16, col = 'Orange4', ylab = 'Total Percentage of Diet', xlab = ' Cumulative Number of Species')
+abline(h = 0.8, lty = 5, lwd = 2, col = "red")
+abline(h = 0.9, lty = 3, lwd = 2, col = "blue")
+dev.off()
+
+#Calculate diet by plant parts
+parts_eaten			<- sort(unique(feedingData$part_eaten))
+feedingSummaryPerFocal	<- cbind.data.frame(focalListNoOdilon, data.frame(matrix(NA, ncol = length(parts_eaten), nrow = nrow(focalListNoOdilon))))
+colnames(feedingSummaryPerFocal)[11:23]	<- parts_eaten
+
+for(i in 1:nrow(feedingSummaryPerFocal)){
+	observer		<- feedingSummaryPerFocal[i, 'pin_code_name']
+	focal_start_time	<- feedingSummaryPerFocal[i, 'focal_start_time']
+	behavData		<- feedingData[feedingData$pin_code_name == observer & feedingData$focal_start_time == focal_start_time,]
+	for(j in 1:length(parts_eaten)){
+		part			<- parts_eaten[j]
+		relevantLines	<- behavData[behavData$part_eaten == part,]
+		feedingDur		<- sum(relevantLines$duration, na.rm = TRUE)
+		feedingSummaryPerFocal[i, j + 10]	<- feedingDur
+	}
+}
+
+feedingSummaryPerFocal	<- cbind.data.frame(feedingSummaryPerFocal, data.frame(matrix(NA, ncol = length(parts_eaten), nrow = nrow(feedingSummaryPerFocal))))
+for(i in 1:length(parts_eaten)){
+	colnames(feedingSummaryPerFocal)[i + 23]	<- paste(parts_eaten[i], 'percent', sep = ' ')
+	feedingSummaryPerFocal[, i + 23]	<- feedingSummaryPerFocal[, i + 10]/(3600*feedingSummaryPerFocal[, 10])
+}
+
+#reshape to long format
+feedingSummaryPerFocalLong	<- reshape(feedingSummaryPerFocal, varying = 24:36, v.names = 'percent', timevar = 'plant_part', drop = 11:23, direction = "long")
+plantPartLong			<- c(rep(parts_eaten[1], nrow(feedingSummaryPerFocal)),
+						rep(parts_eaten[2], nrow(feedingSummaryPerFocal)),
+						rep(parts_eaten[3], nrow(feedingSummaryPerFocal)),
+						rep(parts_eaten[4], nrow(feedingSummaryPerFocal)),
+						rep(parts_eaten[5], nrow(feedingSummaryPerFocal)),
+						rep(parts_eaten[6], nrow(feedingSummaryPerFocal)),
+						rep(parts_eaten[7], nrow(feedingSummaryPerFocal)),
+						rep(parts_eaten[8], nrow(feedingSummaryPerFocal)),
+						rep(parts_eaten[9], nrow(feedingSummaryPerFocal)),
+						rep(parts_eaten[10], nrow(feedingSummaryPerFocal)),
+						rep('Unripe fruit', nrow(feedingSummaryPerFocal)),
+						rep(parts_eaten[12], nrow(feedingSummaryPerFocal)),
+						rep(parts_eaten[13], nrow(feedingSummaryPerFocal)))
+feedingSummaryPerFocalLong$plant_part	<- plantPartLong
+
+diademaFeeding	<- feedingSummaryPerFocalLong[feedingSummaryPerFocalLong$group_id == 'Diadema 2' | feedingSummaryPerFocalLong$group_id == 'Diadema 3',]
+fulvusFeeding	<- feedingSummaryPerFocalLong[feedingSummaryPerFocalLong$group_id == 'Fulvus 2' | feedingSummaryPerFocalLong$group_id == 'Fulvus 3',]
+
+par(mfrow = c(1, 1))
+png("diademaOverallDiet.png", units = 'in', width = 25, height = 10, res = 300)
+boxplot(diademaFeeding$percent ~ diademaFeeding$plant_part, ylim = c(0,1), col = 'midnightblue', pch = 20, cex.lab = 1.5, cex.axis = 1.5, xlab = 'Part eaten', ylab = '% of observation')
+dev.off()
+
+png("fulvusOverallDiet.png", units = 'in', width = 25, height = 10, res = 300)
+boxplot(fulvusFeeding$percent ~ fulvusFeeding$plant_part, ylim = c(0, 1), col = 'Orange4', pch = 20, cex.lab = 1.5, cex.axis = 1.5, xlab = 'Part eaten', ylab = '% of observation')
+dev.off()
+
+bigPartsDiadema	<- diademaFeeding[diademaFeeding$plant_part %in% c('Flower', 'Mature leaves', 'Ripe fruit', 'Seeds', 'Unripe fruit', 'Young leaves'),]
+bigPartsFulvus	<- fulvusFeeding[fulvusFeeding$plant_part %in% c('Flower', 'Mature leaves', 'Ripe fruit', 'Seeds', 'Unripe fruit', 'Young leaves'),]
+
+png("DiscretizedDietBySpecies.png", units = 'in', width = 25, height = 10, res = 300)
+par(mfrow = c(2, 3))
+for(i in c('Flower', 'Mature leaves', 'Ripe fruit', 'Seeds', 'Unripe fruit', 'Young leaves')){
+	subsetDiadema	<- bigPartsDiadema[bigPartsDiadema$plant_part == i,]
+	subsetFulvus	<- bigPartsFulvus[bigPartsFulvus$plant_part == i,]
+	subset		<- rbind.data.frame(subsetDiadema, subsetFulvus)
+	subset$species	<- ifelse(subset$group_id %in% c('Diadema 2', 'Diadema 3'), 'Diadema', 'Fulvus')
+	boxplot(subset$percent ~ subset$rotation + subset$species, ylim = c(0, 1), col = c(rep('midnightblue', 7), rep('Orange4', 7)),
+		names = rep(c('A', 'S', 'O', 'N', 'D/J', 'J/F', 'F/M'), 2), pch = 20, cex.main = 1.5, cex.lab = 1.5, cex.axis = 1.5, xlab = 'Month', ylab = '% of observation', main = i)
+}
+#legend('topright', legend = c('Diadema', 'Fulvus'), fill = c('midnightblue', 'Orange4'), bty = 'n', bg = NA)
+dev.off()
+
+bigPartsDiadema$plant_part	<-as.factor(bigPartsDiadema$plant_part)
+bigPartsFulvus$plant_part	<-as.factor(bigPartsFulvus$plant_part)
+biggerPartsFulvus			<- bigPartsFulvus[bigPartsFulvus$plant_part %in% c('Flower', 'Ripe fruit', 'Unripe fruit', 'Young leaves'),]
+
+model21 <- gamm(percent ~ s(rotation, k = 4, by = plant_part), random = list(focal_individual_id=~1), data = bigPartsDiadema, family = gaussian)
+model22 <- gamm(percent ~ s(rotation, k = 4, by = plant_part), random = list(focal_individual_id=~1), data = bigPartsFulvus, family = gaussian)
+bigParts	<- c('Flower', 'Mature leaves', 'Ripe fruit', 'Seeds', 'Unripe fruit', 'Young leaves')
+
+#Diadema
+png("diademaGAM.png", units = 'in', width = 25, height = 10, res = 300)
+par(mfrow = c(2, 3))
+for(j in 1:6){
+	plot(model21$gam, shade = TRUE, select = j,  ylim = c(-0.1, 0.1), ylab = "Smoothed Effect of Month", cex.main = 1.5, cex.lab = 1.5, cex.axis = 1.5, xaxt = "n", xlab = "Month", main = bigParts[j])
+	axis(1, at = seq(from = 0, to = 6, length.out = 8), cex.lab = 1.5, cex.axis = 1.5, labels = c("Aug", "Sept", "Oct", "Nov", "Dec", "Jan", "Feb", "Mar"))
+	abline(h=0, lty = 5, lwd = 2, col = "red")
+}
+dev.off()
+
+#Fulvus
+png("fulvusGAM.png", units = 'in', width = 25, height = 10, res = 300)
+par(mfrow = c(2, 3))
+for(j in 1:6){
+	plot(model22$gam, shade = TRUE, select = j, ylim = c(-0.1, 0.1), ylab = "Smoothed Effect of Month", cex.main = 1.5, cex.lab = 1.5, cex.axis = 1.5, xaxt = "n", xlab = "Month", main = bigParts[j])
+	axis(1, at = seq(from = 0, to = 6, length.out = 8), cex.lab = 1.5, cex.axis = 1.5, labels = c("Aug", "Sept", "Oct", "Nov", "Dec", "Jan", "Feb", "Mar"))
+	abline(h=0, lty = 5, lwd = 2, col = "red")
+}
+dev.off()
